@@ -11,7 +11,11 @@ import matplotlib.pyplot as plt
 import sklearn.metrics as metrics
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 from sklearn.metrics import roc_auc_score, confusion_matrix
-from scipy import interp
+
+# ==========================================
+# FILES
+# ==========================================
+DATA_DEMO_GZ = "day_demo_2012_2019.csv.gz"
 
 
 # ==========================================
@@ -48,12 +52,12 @@ def getPerformanceMeasurements(y_test, y_prob, in_thresh):
 
     return PR, RE, SP, F1, F2, acc, mcc, cm, TP, FP, TN, FN
 
-def getStats(y_test, y_pred, y_prob, in_thresh):
+def getStats(y_test, y_prob, in_thresh):
     auc = roc_auc_score(y_test, y_prob)
 
     fpr = np.linspace(0, 1, 101)
     fpr_org, tpr_org, threshold = metrics.roc_curve(y_test, y_prob)
-    tpr = interp(fpr, fpr_org, tpr_org)
+    tpr = np.interp(fpr, fpr_org, tpr_org)
 
     if in_thresh is None:
         n_thresh = len(threshold)
@@ -76,35 +80,63 @@ def getStats(y_test, y_pred, y_prob, in_thresh):
 
 # ==========================================
 # Normalization (z-score per athlete based on healthy events)
+# + safe fallbacks
 # ==========================================
-def normalize_row(row, mean_df, std_df, athlete_id):
-    mu = mean_df.loc[athlete_id]
-    su = std_df.loc[athlete_id]
-    return (row - mu) / su
-
 def getMeanStd(data: pd.DataFrame):
-    mean = data[data["injury"] == 0].groupby("Athlete ID").mean(numeric_only=True)
-    std = data[data["injury"] == 0].groupby("Athlete ID").std(numeric_only=True)
-    std.replace(to_replace=0.0, value=0.01, inplace=True)
-    return mean, std
+    """
+    Means/stds computed on healthy events (injury==0) per athlete.
+    If an athlete has no healthy rows, we fall back to global stats.
+    """
+    data_num = data.drop(columns=["Date"], errors="ignore").copy()
+
+    healthy = data_num[data_num["injury"] == 0].copy()
+    if healthy.empty:
+        # fallback: use all rows
+        healthy = data_num.copy()
+
+    mean_df = healthy.groupby("Athlete ID").mean(numeric_only=True)
+    std_df = healthy.groupby("Athlete ID").std(numeric_only=True)
+
+    std_df.replace(to_replace=0.0, value=0.01, inplace=True)
+
+    global_mean = mean_df.mean(numeric_only=True)
+    global_std = std_df.mean(numeric_only=True).replace(0.0, 0.01)
+
+    return mean_df, std_df, global_mean, global_std
+
+def normalize_row(row: pd.Series, mean_df, std_df, global_mean, global_std):
+    athlete_id = row["Athlete ID"]
+    exclude = {"injury", "Date", "Athlete ID"}
+    feat_cols = [c for c in row.index if c not in exclude]
+
+    if athlete_id in mean_df.index:
+        mu = mean_df.loc[athlete_id]
+        su = std_df.loc[athlete_id]
+    else:
+        mu = global_mean
+        su = global_std
+
+    out = row.copy()
+    out[feat_cols] = (row[feat_cols] - mu[feat_cols]) / su[feat_cols]
+    return out
 
 
 # ==========================================
 # Data loading
 # ==========================================
-def loadData(approach: str):
-    if approach == "day":
-        return pd.read_csv("day_approach_maskedID_timeseries.csv")
-    if approach == "week":
-        return pd.read_csv("week_approach_maskedID_timeseries.csv")
-    raise ValueError("approach must be 'day' or 'week'")
+def loadData():
+    df = pd.read_csv(DATA_DEMO_GZ, compression="gzip")
+    df["Athlete ID"] = df["Athlete ID"].astype(float).astype(int)
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.sort_values(["Athlete ID", "Date"])
+    return df
 
 
 # ==========================================
-# Calibration curve
+# Calibration curve + ROC
 # ==========================================
 def plotCalibrationCurve(y_test, y_pred, filename):
-    fig = plt.figure(1, figsize=(7, 7))
+    plt.figure(figsize=(7, 7))
     frac_pos, mean_pred = calibration_curve(y_test, y_pred, n_bins=10, strategy="quantile")
     plt.plot(mean_pred, frac_pos, "s-", label="XGBoost")
     plt.plot([0, 1], [0, 1], ls="--", c="0.3")
@@ -149,7 +181,6 @@ def add_acwr(df_day: pd.DataFrame, chronic_window_days: int = 28) -> pd.DataFram
 
     out["Date"] = pd.to_datetime(out["Date"], errors="coerce")
     out = out.sort_values(["Athlete ID", "Date"])
-
     out["Acute_7d_km"] = compute_acute_km_day(out)
 
     def _per_athlete(g):
@@ -189,18 +220,20 @@ def plot_acwr_for_athlete(df_day: pd.DataFrame, athlete_id: int, filename: str):
 # ==========================================
 # Model training / bagging
 # ==========================================
-def trainModel(params, dftrain, df_val, mean, std, calibrate_method):
+def trainModel(params, dftrain, df_val, mean_df, std_df, global_mean, global_std, calibrate_method):
     y_train = np.array(dftrain["injury"]).astype(int)
     y_val = np.array(df_val["injury"]).astype(int)
 
-    data_train = dftrain.drop(columns=["injury", "Date"], errors="ignore")
-    data_val = df_val.drop(columns=["injury", "Date"], errors="ignore")
+    data_train = dftrain.copy()
+    data_val = df_val.copy()
 
-    data_train = data_train.apply(lambda x: normalize_row(x, mean, std, x["Athlete ID"]), axis=1)
-    data_val = data_val.apply(lambda x: normalize_row(x, mean, std, x["Athlete ID"]), axis=1)
+    # Normalize row-wise
+    data_train = data_train.apply(lambda r: normalize_row(r, mean_df, std_df, global_mean, global_std), axis=1)
+    data_val = data_val.apply(lambda r: normalize_row(r, mean_df, std_df, global_mean, global_std), axis=1)
 
-    X_train = data_train.drop(columns=["Athlete ID"], errors="ignore").to_numpy()
-    X_val = data_val.drop(columns=["Athlete ID"], errors="ignore").to_numpy()
+    # Build X matrices
+    X_train = data_train.drop(columns=["injury", "Date", "Athlete ID"], errors="ignore").to_numpy()
+    X_val = data_val.drop(columns=["injury", "Date", "Athlete ID"], errors="ignore").to_numpy()
 
     model = xgb.XGBClassifier(
         objective="binary:logistic",
@@ -216,63 +249,61 @@ def trainModel(params, dftrain, df_val, mean, std, calibrate_method):
     calib_model = CalibratedClassifierCV(model, method=calibrate_method, cv="prefit")
     calib_model.fit(X_val, y_val)
 
-    return model, calib_model, X_val, y_val
+    return model, calib_model
 
-def getBalancedSubset(X_train, samplesPerClass):
-    stats = pd.DataFrame(X_train[["Athlete ID", "injury"]].groupby(["Athlete ID", "injury"]).size().reset_index(name="counts"))
-    stats = pd.DataFrame(stats[["Athlete ID"]].groupby(["Athlete ID"]).size().reset_index(name="counts"))
-    stats.drop(stats[stats["counts"] < 2].index, inplace=True)
+def getBalancedSubset(X_train: pd.DataFrame, samplesPerClass: int):
+    # Keep athletes who have both classes
+    stats = (
+        X_train[["Athlete ID", "injury"]]
+        .groupby(["Athlete ID", "injury"])
+        .size()
+        .reset_index(name="counts")
+    )
+    stats = stats.groupby("Athlete ID").size().reset_index(name="counts")
+    stats = stats[stats["counts"] >= 2]
     athleteList = stats["Athlete ID"].unique()
 
-    samplesPerAthlete = int(np.floor(samplesPerClass / len(athleteList)))
+    if len(athleteList) == 0:
+        # fallback: global balanced sample
+        inj = X_train[X_train["injury"] == 1]
+        ok = X_train[X_train["injury"] == 0]
+        n = min(len(inj), len(ok), samplesPerClass)
+        return pd.concat([inj.sample(n, replace=True), ok.sample(n, replace=True)], ignore_index=True)
+
+    samplesPerAthlete = max(1, int(np.floor(samplesPerClass / len(athleteList))))
 
     healthySet = []
     injurySet = []
-
     for athlete in athleteList:
-        injurySet.append(
-            X_train[(X_train["Athlete ID"] == athlete) & (X_train["injury"] == 1)].sample(samplesPerAthlete, replace=True)
-        )
-        healthySet.append(
-            X_train[(X_train["Athlete ID"] == athlete) & (X_train["injury"] == 0)].sample(samplesPerAthlete, replace=True)
-        )
+        inj = X_train[(X_train["Athlete ID"] == athlete) & (X_train["injury"] == 1)]
+        ok = X_train[(X_train["Athlete ID"] == athlete) & (X_train["injury"] == 0)]
+        if len(inj) == 0 or len(ok) == 0:
+            continue
+        injurySet.append(inj.sample(samplesPerAthlete, replace=True))
+        healthySet.append(ok.sample(samplesPerAthlete, replace=True))
 
     balanced = pd.concat(injurySet + healthySet, ignore_index=True)
     return balanced
 
-def predictValues(X, model):
-    y_pred = model.predict(X)
-    y_prob = model.predict_proba(X)[:, 1]
-    return y_pred, y_prob
+def predict_proba_bagging(modelList, X: np.ndarray) -> np.ndarray:
+    probs = []
+    for model in modelList:
+        probs.append(model.predict_proba(X)[:, 1])
+    return np.mean(np.vstack(probs), axis=0)
 
-def applyBagging(modelList, X_test, X_test_means, X_test_std, in_thresh, filename):
+def applyBagging(modelList, X_test, mean_df, std_df, global_mean, global_std, in_thresh, filename):
     y_test = np.array(X_test["injury"]).astype(int)
 
-    dfX = X_test.drop(columns=["injury", "Date"], errors="ignore").copy()
-    dfX = dfX.apply(lambda x: normalize_row(x, X_test_means, X_test_std, x["Athlete ID"]), axis=1)
-    X = dfX.drop(columns=["Athlete ID"], errors="ignore").to_numpy()
+    dfX = X_test.copy()
+    dfX = dfX.apply(lambda r: normalize_row(r, mean_df, std_df, global_mean, global_std), axis=1)
+    X = dfX.drop(columns=["injury", "Date", "Athlete ID"], errors="ignore").to_numpy()
 
-    probs = []
-    fprs = []
-    tprs = []
-    aucs = []
-
-    for model in modelList:
-        _, y_prob = predictValues(X, model)
-        probs.append(y_prob)
-
-        s = getStats(y_test, None, y_prob, in_thresh)
-        fprs.append(s["fpr"])
-        tprs.append(s["tpr"])
-        aucs.append(s["auc"])
-
-    y_prob_bag = np.mean(np.vstack(probs), axis=0)
+    y_prob_bag = predict_proba_bagging(modelList, X)
     plotCalibrationCurve(y_test, y_prob_bag, filename)
 
-    stats = getStats(y_test, None, y_prob_bag, None if in_thresh is None else in_thresh)
+    stats = getStats(y_test, y_prob_bag, None if in_thresh is None else in_thresh)
     thresh = stats["thresh"]
-
-    return thresh, float(np.mean(aucs)), np.mean(np.vstack(fprs), axis=0), np.mean(np.vstack(tprs), axis=0), y_test, y_prob_bag
+    return thresh, stats["auc"], stats["fpr"], stats["tpr"], y_test, y_prob_bag
 
 def writeResults(outdir, row):
     resultsFilename = f"./{outdir}/results.csv"
@@ -285,51 +316,66 @@ def writeResults(outdir, row):
             w.writerow(header)
         w.writerow(row)
 
-def runExperiment(params, approach, exp):
-    outdir = f"{approach}_{params['samplesPerClass']}"
+def runExperiment(params, exp):
+    outdir = f"demo_day_{params['samplesPerClass']}"
     os.makedirs(outdir, exist_ok=True)
 
-    df = loadData(approach)
+    df = loadData()
+    df = add_acwr(df, chronic_window_days=28)
 
-    if approach == "day" and "Date" in df.columns:
-        df = add_acwr(df, chronic_window_days=28)
+    athletes = sorted(df["Athlete ID"].unique().tolist())
+    test_athletes = athletes[-params["nTestAthletes"]:]
+    X_test = df[df["Athlete ID"].isin(test_athletes)].copy()
 
-    athletes = sorted(list(df["Athlete ID"].unique()))
-    test_athletes = athletes[len(athletes) - params["nTestAthletes"] :]
+    X_trainval = df[~df["Athlete ID"].isin(test_athletes)].copy()
 
-    X_test = df[df["Athlete ID"].isin(test_athletes)]
-    X_test_means, X_test_std = getMeanStd(X_test)
+    # stats for normalization computed on trainval
+    mean_df, std_df, global_mean, global_std = getMeanStd(X_trainval)
 
-    X_trainval = df[~df["Athlete ID"].isin(test_athletes)]
-    X_train_means, X_train_std = getMeanStd(X_trainval)
-
+    # Validation subset (balanced)
     X_val = getBalancedSubset(X_trainval, params["samplesPerClass"])
 
     modelList = []
     for _ in range(params["nbags"]):
         X_train_bag = getBalancedSubset(X_trainval, params["samplesPerClass"])
-        _, calib_model, _, _ = trainModel(params, X_train_bag, X_val, X_train_means, X_train_std, params["calibrationType"])
+        _, calib_model = trainModel(
+            params, X_train_bag, X_val,
+            mean_df, std_df, global_mean, global_std,
+            params["calibrationType"]
+        )
         modelList.append(calib_model)
 
-    val_samples = pd.concat([
-        X_trainval[X_trainval["injury"] == 0].sample(len(X_test[X_test["injury"] == 0]), replace=False),
-        X_trainval[X_trainval["injury"] == 1].sample(len(X_test[X_test["injury"] == 1]), replace=False)
-    ], ignore_index=True)
+    # Create val_samples matching test class counts (if possible)
+    n_ok = len(X_test[X_test["injury"] == 0])
+    n_inj = len(X_test[X_test["injury"] == 1])
+    ok_pool = X_trainval[X_trainval["injury"] == 0]
+    inj_pool = X_trainval[X_trainval["injury"] == 1]
+    n_ok = min(n_ok, len(ok_pool))
+    n_inj = min(n_inj, len(inj_pool))
+
+    val_samples = pd.concat(
+        [
+            ok_pool.sample(n_ok, replace=False) if n_ok > 0 else ok_pool.sample(min(100, len(ok_pool)), replace=True),
+            inj_pool.sample(n_inj, replace=False) if n_inj > 0 else inj_pool.sample(min(100, len(inj_pool)), replace=True),
+        ],
+        ignore_index=True,
+    )
 
     val_thresh, val_auc, val_fpr, val_tpr, _, _ = applyBagging(
-        modelList, val_samples, X_train_means, X_train_std, in_thresh=None,
-        filename=f"./{outdir}/calibrate_validation_{exp}.png"
+        modelList, val_samples, mean_df, std_df, global_mean, global_std,
+        in_thresh=None, filename=f"./{outdir}/calibrate_validation_{exp}.png"
     )
 
     test_thresh, test_auc, test_fpr, test_tpr, y_test, y_prob = applyBagging(
-        modelList, X_test, X_test_means, X_test_std, in_thresh=val_thresh,
-        filename=f"./{outdir}/calibrate_test_{exp}.png"
+        modelList, X_test, mean_df, std_df, global_mean, global_std,
+        in_thresh=val_thresh, filename=f"./{outdir}/calibrate_test_{exp}.png"
     )
 
     plotROC(val_fpr, val_tpr, val_auc, test_fpr, test_tpr, test_auc, f"./{outdir}/ROC_{exp}.png")
     writeResults(outdir, [params["nTestAthletes"], params["nbags"], exp, test_thresh, val_auc, test_auc])
 
-    if approach == "day" and "ACWR" in df.columns and "Date" in df.columns:
+    # quick ACWR plot for first test athlete
+    if len(test_athletes) > 0:
         aid = int(test_athletes[0])
         plot_acwr_for_athlete(df, aid, f"./{outdir}/ACWR_athlete_{aid}_exp{exp}.png")
 
@@ -342,16 +388,14 @@ def main():
         "calibrationType": "sigmoid",
         "nExp": 5,
         "samplesPerClass": 2048,
-        "approachList": ["day"],
         "XGBEstimatorsList": [256, 512],
         "XGBDepthList": [2, 3],
     }
 
-    for approach in params["approachList"]:
-        for exp in range(params["nExp"]):
-            print(f"Approche={approach}, exp={exp+1}/{params['nExp']}")
-            val_auc, test_auc = runExperiment(params, approach, exp)
-            print(f"AUC Val={val_auc:.4f} | AUC Test={test_auc:.4f}")
+    for exp in range(params["nExp"]):
+        print(f"Demo Day | exp={exp+1}/{params['nExp']}")
+        val_auc, test_auc = runExperiment(params, exp)
+        print(f"AUC Val={val_auc:.4f} | AUC Test={test_auc:.4f}")
 
 if __name__ == "__main__":
     main()
