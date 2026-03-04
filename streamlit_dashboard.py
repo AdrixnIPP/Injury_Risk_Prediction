@@ -13,15 +13,15 @@ from sklearn.calibration import calibration_curve
 
 
 # =========================
-# FILES
+# FILES (repo)
 # =========================
-DATA = "day_demo_2012_2019.csv"
+DATA = "day_demo_2012_2019.csv.gz"   # <-- IMPORTANT (your repo file)
 MODEL_PATH = "xgb_model.pkl"
 CALIB_PATH = "calib_model.pkl"
 
 
 # =========================
-# i18n (EN/FR) — FR completed + richer
+# i18n (EN/FR)
 # =========================
 I18N = {
     "en": {
@@ -43,64 +43,53 @@ I18N = {
         "actions": "Decisions & explanations",
         "risk_trend_title": "Injury risk score over time (per athlete)",
         "risk_trend_help": (
-            "Use this to spot rising trends or unstable periods. "
-            "A sustained increase often suggests a load/recovery imbalance to investigate."
+            "Spot rising trends and unstable periods. A sustained increase may signal a load/recovery imbalance to investigate."
         ),
         "acwr_title": "ACWR over time (Acute:Chronic Workload Ratio)",
         "acwr_help": (
-            "ACWR compares recent load (7 days) vs the athlete’s habitual load (28-day baseline). "
-            "Spikes can signal sudden load changes that should be managed."
+            "ACWR compares recent load (7 days) vs habitual load (28-day baseline). Spikes can indicate sudden load changes to manage."
         ),
         "risk_vs_load_title": "Risk vs short-term load (Acute 7-day km)",
         "risk_vs_load_help": (
-            "Shows how the risk score behaves relative to recent volume. "
-            "Clusters at high load + high risk help prioritize monitoring and recovery actions."
+            "Shows how the risk score behaves relative to recent volume. High load + high risk clusters help prioritize recovery actions."
         ),
         "heatmap_title": "Long-term heatmap (seasonality & trends)",
         "heatmap_help": (
-            "Useful to understand season blocks (build/compete/off) and long-term patterns. "
-            "Helps staff contextualize risk/load by quarter or year."
+            "Understand season blocks (build/compete/off) and long-term patterns. Useful to contextualize risk and workload by quarter/year."
         ),
         "focus_athlete": "Focus athlete",
         "pick_day": "Pick a day",
         "drivers_title": "Main drivers (why this score?)",
         "drivers_help": (
-            "These explanations come from SHAP values. "
-            "Positive contributions push the risk up; negative contributions push it down. "
-            "Use them as coaching signals (load/recovery balance), not as medical causality."
+            "SHAP explanations: positive contributions push risk up; negative contributions push it down. Use as coaching signals, not medical causality."
         ),
         "drivers_howto": (
             "**How to read this:**\n"
-            "- **Direction:** whether the factor increased or decreased the risk score on that day.\n"
-            "- **Magnitude:** how strong the influence was compared to other variables.\n"
-            "- **Actionable use:** identify controllable levers (volume, intensity mix, session count, recovery signals).\n"
-            "\n"
-            "> Important: SHAP explains the model’s decision, not the biological cause of injuries."
+            "- **Direction:** whether the factor increased or decreased the risk score that day.\n"
+            "- **Magnitude:** relative strength compared to other variables.\n"
+            "- **Practical use:** identify actionable levers (volume, intensity mix, sessions, recovery signals).\n\n"
+            "> SHAP explains the model output, not the biological cause of injuries."
         ),
         "contrib_heatmap_title": "SHAP contribution heatmap (recent days)",
-        "contrib_heatmap_help": (
-            "Red pushes risk up, blue pushes it down. "
-            "Use it to quickly see which factors repeatedly drive risk during the recent period."
-        ),
+        "contrib_heatmap_help": "Red pushes risk up, blue pushes it down. Quickly reveals repeated drivers during recent days.",
         "ml_audit": "🧠 Machine Learning details (model audit)",
         "raw_data": "Raw data (selected athletes)",
         "about": """
 ### Motivation
-Staying injury-free is one of the most important factors for success in sport, yet injuries are hard to predict. Wearables and data science make it possible to monitor training load and detect early warning signals.
+Staying injury-free is key to performance, yet injuries are hard to predict. Wearables and data science can help monitor training load and detect early warning signals.
 
-This project builds on a study that tested machine learning injury prediction in competitive runners using detailed training logs. The dataset includes 74 high-level runners tracked over seven years, combining objective GPS metrics (distance, duration) with subjective feedback (perceived effort, recovery, training success).
-
-The best-performing approach uses day-by-day information from the 7 days preceding an injury. The model family is **bagged XGBoost**, which captures non-linear interactions between load, intensity and recovery.
+This project builds on a study using machine learning injury prediction in competitive runners with detailed training logs (GPS metrics + subjective feedback).
+The strongest approach uses day-by-day information from the 7 days preceding an injury. The model family is **bagged XGBoost**.
 
 ### What is this dashboard for?
-This dashboard translates the research into a practical staff tool:
+A staff-friendly decision-support tool:
 - track **risk score** trajectories per athlete,
 - monitor **workload indicators** (including ACWR),
-- and use **SHAP** to understand what is driving risk up or down for each athlete/day.
+- and use **SHAP** to understand what drives risk up/down for each athlete/day.
 
 ### Why XGBoost & SHAP?
-- **XGBoost** is strong on tabular data and handles complex interactions typical of training/injury dynamics.
-- **SHAP** improves trust and usability by explaining model outputs (beyond a black-box risk number).
+- **XGBoost** performs very well on tabular data and captures non-linear interactions typical of training/injury dynamics.
+- **SHAP** increases transparency: you don’t just see a score, you see *why* the model alerts.
 
 > ⚠️ The risk score is not a medical diagnosis. It is a monitoring signal to support decisions.
 """,
@@ -131,66 +120,59 @@ This dashboard translates the research into a practical staff tool:
         "actions": "Décisions & explications",
         "risk_trend_title": "Évolution du score de risque de blessure dans le temps (par athlète)",
         "risk_trend_help": (
-            "Ce graphique sert à repérer les tendances à la hausse et les périodes instables. "
-            "Une hausse durable peut indiquer un déséquilibre charge / récupération à investiguer."
+            "Repérer les tendances à la hausse et les périodes instables. Une hausse durable peut indiquer un déséquilibre charge / récupération."
         ),
         "acwr_title": "Évolution de l’ACWR (ratio charge aiguë / chronique) dans le temps",
         "acwr_help": (
-            "L’ACWR compare la charge récente (7 jours) à la charge habituelle (baseline sur 28 jours). "
-            "Des pics peuvent signaler une montée trop rapide de charge à encadrer."
+            "L’ACWR compare la charge récente (7 jours) à la charge habituelle (baseline 28 jours). Des pics peuvent signaler une montée trop rapide."
         ),
         "risk_vs_load_title": "Risque vs charge récente (volume sur 7 jours)",
         "risk_vs_load_help": (
-            "Ce graphique met en regard le score de risque et le volume récent. "
-            "Les zones « forte charge + risque élevé » aident à prioriser la vigilance, l’ajustement de charge et la récup."
+            "Met en regard le score de risque et le volume récent. Les zones « forte charge + risque élevé » aident à prioriser vigilance et récup."
         ),
         "heatmap_title": "Heatmap long terme (saisonnalité & tendances)",
         "heatmap_help": (
-            "Utile pour lire les cycles de saison (construction / compétition / récupération) et les tendances de fond. "
-            "Aide le staff à contextualiser risque et charge par trimestre ou par année."
+            "Lire les cycles de saison (construction / compétition / récupération) et les tendances de fond. Utile pour contextualiser risque et charge."
         ),
         "focus_athlete": "Athlète focus",
         "pick_day": "Choisir un jour",
         "drivers_title": "Facteurs principaux (pourquoi ce score ?)",
         "drivers_help": (
-            "Ces explications proviennent des valeurs SHAP. "
-            "Une contribution positive augmente le risque ; une contribution négative le diminue. "
-            "À utiliser comme signal d’aide à la décision (équilibre charge/récup), pas comme causalité médicale."
+            "Explications SHAP : une contribution positive augmente le risque ; une contribution négative le diminue. "
+            "À utiliser comme signal terrain, pas comme causalité médicale."
         ),
         "drivers_howto": (
             "**Comment lire ces facteurs :**\n"
-            "- **Sens (hausse/baisse)** : indique si la variable pousse le score de risque vers le haut ou vers le bas ce jour-là.\n"
-            "- **Amplitude** : mesure l’importance relative par rapport aux autres variables.\n"
-            "- **Usage terrain** : identifier des leviers actionnables (volume, répartition intensités, nombre de séances, signaux de récup).\n"
-            "\n"
-            "> Important : SHAP explique la décision du modèle, pas la cause biologique de la blessure."
+            "- **Sens (hausse/baisse)** : la variable pousse le score vers le haut ou le bas ce jour-là.\n"
+            "- **Amplitude** : importance relative vs les autres variables.\n"
+            "- **Usage terrain** : leviers actionnables (volume, intensité, séances, récupération).\n\n"
+            "> SHAP explique la décision du modèle, pas la cause biologique."
         ),
         "contrib_heatmap_title": "Heatmap des contributions SHAP (jours récents)",
         "contrib_heatmap_help": (
             "Rouge = pousse le risque à la hausse. Bleu = pousse le risque à la baisse. "
-            "Permet de voir rapidement quels facteurs reviennent souvent quand le risque monte."
+            "Permet d’identifier les facteurs récurrents quand le risque monte."
         ),
         "ml_audit": "🧠 Détails Machine Learning (audit modèle)",
         "raw_data": "Données brutes (athlètes sélectionnés)",
         "about": """
 ### Motivation
-Être le plus possible « injury-free » est un facteur clé de performance sportive, mais la blessure reste difficile à prévoir. Les wearables et la data permettent aujourd’hui de mieux suivre la charge d’entraînement et d’identifier des signaux précoces.
+Être le plus possible « injury-free » est clé pour performer, mais la blessure reste difficile à prévoir. Les wearables et la data permettent de mieux suivre la charge et d’identifier des signaux faibles.
 
-Ce projet s’appuie sur une étude qui teste la prédiction de blessures chez des coureurs compétitifs via du machine learning et des carnets d’entraînement détaillés. Le jeu de données contient 74 coureurs de haut niveau suivis sur 7 ans, avec un mix de données objectives GPS (distance, durée) et de données subjectives (effort perçu, récupération, ressenti de réussite de séance).
-
-L’approche la plus performante exploite des informations **jour par jour** sur les **7 jours précédant** une blessure. La famille de modèles utilisée est **XGBoost en bagging**, capable de capturer des interactions non linéaires entre charge, intensité et récupération.
+Ce projet s’appuie sur une étude de prédiction de blessures chez des coureurs via du machine learning et des carnets d’entraînement (GPS + ressenti).
+L’approche la plus performante exploite des informations jour par jour sur les 7 jours précédant une blessure. Le modèle est **XGBoost en bagging**.
 
 ### Objectif du dashboard interactif
-Ce dashboard transforme le travail de recherche en outil opérationnel pour un staff :
+Un outil opérationnel staff :
 - suivre l’**évolution du score de risque** par athlète,
-- monitorer des indicateurs de **charge** (dont l’ACWR),
-- et comprendre les **facteurs explicatifs** via SHAP (ce qui tire le risque vers le haut ou vers le bas pour un jour et un athlète donné).
+- monitorer des indicateurs de **charge** (dont ACWR),
+- comprendre les **facteurs explicatifs** via SHAP (ce qui tire le risque vers le haut / le bas).
 
 ### Pourquoi XGBoost & SHAP ?
-- **XGBoost** est très performant sur des données tabulaires et gère bien les interactions complexes typiques de la dynamique charge/blessure.
-- **SHAP** apporte de la transparence : on ne se contente pas d’un score, on peut expliquer *pourquoi* le modèle alerte, ce qui est crucial pour l’adhésion des coachs.
+- **XGBoost** est très performant sur données tabulaires et capture des interactions non linéaires.
+- **SHAP** ajoute de la transparence (adhésion coach) : on ne se contente pas d’un score, on explique pourquoi.
 
-> ⚠️ Le score de risque n’est pas un diagnostic médical : c’est un signal de monitoring pour aider à la décision.
+> ⚠️ Le score de risque n’est pas un diagnostic médical : c’est un signal de monitoring.
 """,
         "guidance": """
 **Recommandations terrain**
@@ -209,7 +191,7 @@ st.set_page_config(page_title="Injury Risk Dashboard", page_icon="🏃", layout=
 
 
 # =========================
-# VISUAL THEME (improved)
+# VISUAL THEME (clean)
 # =========================
 st.markdown(
     """
@@ -217,7 +199,7 @@ st.markdown(
       .stApp { background: #E9E9EE; }
       .block-container { padding-top: 1.2rem; padding-bottom: 2rem; }
 
-      /* Container cards */
+      /* Cards */
       div[data-testid="stContainer"] {
         background: #F6F6F8;
         border: 1px solid rgba(0,0,0,0.06);
@@ -228,9 +210,9 @@ st.markdown(
 
       h1, h2, h3 { letter-spacing: -0.02em; }
       h2 { margin-top: 0.6rem; }
+
       div[data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; }
 
-      /* Sidebar spacing */
       section[data-testid="stSidebar"] > div { padding-top: 1.0rem; }
     </style>
     """,
@@ -242,9 +224,13 @@ def polish_chart(chart: alt.Chart):
         chart.configure_view(strokeOpacity=0, fill="transparent")
         .properties(background="transparent")
         .configure_axis(
-            labelFontSize=12, titleFontSize=13,
-            grid=True, gridOpacity=0.18, tickSize=3,
-            labelColor="#222", titleColor="#222",
+            labelFontSize=12,
+            titleFontSize=13,
+            grid=True,
+            gridOpacity=0.18,
+            tickSize=3,
+            labelColor="#222",
+            titleColor="#222",
         )
         .configure_legend(titleFontSize=12, labelFontSize=11, orient="bottom")
         .configure_title(fontSize=16, anchor="start", fontWeight=600, color="#222")
@@ -263,30 +249,34 @@ def load_models():
 
 @st.cache_data(show_spinner=False)
 def load_dataset() -> pd.DataFrame:
-    df = pd.read_csv(DATA)
+    df = pd.read_csv(DATA, compression="gzip")
     df["Athlete ID"] = df["Athlete ID"].astype(float).astype(int)
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["Year"] = df["Date"].dt.year
+    df = df.sort_values(["Athlete ID", "Date"])
     return df
 
 
 # =========================
-# FEATURES / NORMALIZATION
+# FEATURES / NORMALIZATION (robust)
 # =========================
 def get_feature_cols(df: pd.DataFrame) -> list[str]:
     return [c for c in df.columns if c not in ["injury", "Date", "Athlete ID", "Year"]]
 
 def getMeanStd(data: pd.DataFrame):
-    tmp = data[data["injury"] == 0].copy()
+    tmp = data.copy()
     tmp = tmp.drop(columns=["Date", "Year"], errors="ignore")
 
-    mean_df = tmp.groupby("Athlete ID").mean(numeric_only=True).drop(columns=["injury"], errors="ignore")
-    std_df  = tmp.groupby("Athlete ID").std(numeric_only=True).drop(columns=["injury"], errors="ignore")
+    healthy = tmp[tmp["injury"] == 0].copy()
+    if healthy.empty:
+        healthy = tmp.copy()
 
+    mean_df = healthy.groupby("Athlete ID").mean(numeric_only=True).drop(columns=["injury"], errors="ignore")
+    std_df = healthy.groupby("Athlete ID").std(numeric_only=True).drop(columns=["injury"], errors="ignore")
     std_df.replace(0, 0.01, inplace=True)
 
     global_mean = mean_df.mean()
-    global_std  = std_df.mean().replace(0, 0.01)
+    global_std = std_df.mean().replace(0, 0.01)
     return mean_df, std_df, global_mean, global_std
 
 def normalize_row(row: pd.Series, mean_df, std_df, global_mean, global_std) -> pd.Series:
@@ -302,7 +292,7 @@ def normalize_row(row: pd.Series, mean_df, std_df, global_mean, global_std) -> p
     out[feat_cols] = (row[feat_cols] - mu[feat_cols]) / su[feat_cols]
     return out
 
-def rename_feature(col: str) -> str:
+def rename_feature(col: str, lang: str) -> str:
     if "." not in col:
         return col
     base, last = col.rsplit(".", 1)
@@ -310,19 +300,37 @@ def rename_feature(col: str) -> str:
         return col
     lag = int(last)
 
-    mapping = {
-        "total km": "Distance totale (km)",
-        "perceived recovery": "Récupération perçue",
-        "perceived exertion": "Effort perçu",
-        "perceived trainingSuccess": "Réussite de séance (ressenti)",
-        "km Z3-4": "Distance intensité modérée (Z3-4)",
-        "km Z5-T1-T2": "Distance haute intensité",
-        "nr. sessions": "Nombre de séances",
-        "strength training": "Renforcement",
-    }
-    label = mapping.get(base, base)
-    return f"{label} (J-{lag})"
+    if lang == "fr":
+        mapping = {
+            "total km": "Distance totale (km)",
+            "perceived recovery": "Récupération perçue",
+            "perceived exertion": "Effort perçu",
+            "perceived trainingSuccess": "Réussite de séance (ressenti)",
+            "km Z3-4": "Distance intensité modérée (Z3-4)",
+            "km Z5-T1-T2": "Distance haute intensité",
+            "nr. sessions": "Nombre de séances",
+            "strength training": "Renforcement",
+        }
+        label = mapping.get(base, base)
+        return f"{label} (J-{lag})"
+    else:
+        mapping = {
+            "total km": "Total distance (km)",
+            "perceived recovery": "Perceived recovery",
+            "perceived exertion": "Perceived exertion",
+            "perceived trainingSuccess": "Training success (self-report)",
+            "km Z3-4": "Moderate intensity distance (Z3-4)",
+            "km Z5-T1-T2": "High intensity distance",
+            "nr. sessions": "Number of sessions",
+            "strength training": "Strength training",
+        }
+        label = mapping.get(base, base)
+        return f"{label} (D-{lag})"
 
+
+# =========================
+# ACWR
+# =========================
 def compute_acute_km(df: pd.DataFrame) -> pd.Series:
     cols = [c for c in df.columns if c.startswith("total km.")]
     if not cols:
@@ -330,8 +338,7 @@ def compute_acute_km(df: pd.DataFrame) -> pd.Series:
     return df[cols].sum(axis=1, numeric_only=True)
 
 def add_acwr(panel: pd.DataFrame, chronic_window_days: int = 28) -> pd.DataFrame:
-    out = panel.copy()
-    out = out.sort_values(["Athlete ID", "Date"])
+    out = panel.copy().sort_values(["Athlete ID", "Date"])
     out["Acute_7d_km"] = compute_acute_km(out)
 
     def _per_athlete(g):
@@ -365,13 +372,13 @@ def coach_message(score: float, lang: str) -> str:
 
 
 # =========================
-# Sidebar language + filters
+# Sidebar: language + filters
 # =========================
 st.sidebar.header("Settings")
 lang_choice = st.sidebar.selectbox(
     I18N["en"]["lang_label"] + " / " + I18N["fr"]["lang_label"],
     ["Français", "English"],
-    index=0
+    index=0,
 )
 lang = "fr" if lang_choice == "Français" else "en"
 T = I18N[lang]
@@ -389,11 +396,7 @@ selected_athletes = st.sidebar.multiselect(
 )
 
 years = sorted([int(y) for y in df["Year"].dropna().unique()])
-selected_years = st.sidebar.multiselect(
-    T["years"],
-    options=years,
-    default=years,
-)
+selected_years = st.sidebar.multiselect(T["years"], options=years, default=years)
 
 time_window = st.sidebar.radio(T["time_window"], ["30 days", "90 days", "All"], index=0)
 
@@ -475,26 +478,27 @@ panel, shap_store = compute_panel(panel_raw)
 
 
 # =========================================================
-# SECTION — Context
+# Context
 # =========================================================
 st.header(T["context"])
 with st.container(border=True):
     st.markdown(
-        "Ce dashboard sert à **monitorer** la charge et le risque, et à **prioriser** les actions terrain (ajustement charge, récup, vigilance médicale)."
-        if lang == "fr" else
-        "This dashboard is a monitoring tool to support staff decisions (load adjustment, recovery focus, medical vigilance)."
+        "Ce dashboard sert à **monitorer** charge et risque, et à **prioriser** les actions terrain (ajustement charge, récup, vigilance médicale)."
+        if lang == "fr"
+        else
+        "This dashboard supports staff decisions by monitoring workload and risk (load adjustments, recovery focus, medical vigilance)."
     )
 
 
 # =========================================================
-# SECTION — Visual monitoring
+# Monitoring views
 # =========================================================
 st.header(T["visual"])
 
 if panel.empty or panel["Date"].isna().all():
     st.warning("Aucune date valide dans les données filtrées." if lang == "fr" else "No valid dates found in the filtered data.")
 else:
-    # Quick KPI: best / worst (latest)
+    # KPIs
     latest = panel.sort_values("Date").groupby("Athlete ID").tail(1)
     best = latest.loc[latest["Risk"].idxmin()]
     worst = latest.loc[latest["Risk"].idxmax()]
@@ -502,7 +506,6 @@ else:
     with st.container(border=True):
         st.subheader("Synthèse rapide" if lang == "fr" else "Quick summary")
         a, b, c = st.columns(3)
-
         _, label_b, icon_b = risk_band(float(best["Risk"]))
         _, label_w, icon_w = risk_band(float(worst["Risk"]))
 
@@ -521,7 +524,7 @@ else:
             f"{latest['Risk'].mean():.2f}",
         )
 
-    # --- Risk trend
+    # Risk trend
     with st.container(border=True):
         st.subheader(T["risk_trend_title"])
         st.caption(T["risk_trend_help"])
@@ -539,7 +542,7 @@ else:
         )
         st.altair_chart(polish_chart(risk_chart), use_container_width=True)
 
-    # --- ACWR time-series (with reference lines)
+    # ACWR time-series with reference lines
     with st.container(border=True):
         st.subheader(T["acwr_title"])
         st.caption(T["acwr_help"])
@@ -550,27 +553,24 @@ else:
             x=alt.X("Date:T", title="Date"),
             color=alt.Color("Athlete ID:N", title=T["athletes"]),
         )
-
         line = base.mark_line().encode(
             y=alt.Y("ACWR:Q", title="ACWR", scale=alt.Scale(zero=False)),
             tooltip=["Date:T", "Athlete ID:N", "Acute_7d_km:Q", "Chronic_28d_km:Q", "ACWR:Q"],
         )
 
-        # reference thresholds (common heuristic bands)
-        ref_1_3 = alt.Chart(pd.DataFrame({"y": [1.3]})).mark_rule(strokeDash=[6, 4]).encode(y="y:Q")
-        ref_1_5 = alt.Chart(pd.DataFrame({"y": [1.5]})).mark_rule(strokeDash=[2, 2]).encode(y="y:Q")
-        ref_0_8 = alt.Chart(pd.DataFrame({"y": [0.8]})).mark_rule(strokeDash=[6, 4]).encode(y="y:Q")
+        ref_08 = alt.Chart(pd.DataFrame({"y": [0.8]})).mark_rule(strokeDash=[6, 4]).encode(y="y:Q")
+        ref_13 = alt.Chart(pd.DataFrame({"y": [1.3]})).mark_rule(strokeDash=[6, 4]).encode(y="y:Q")
+        ref_15 = alt.Chart(pd.DataFrame({"y": [1.5]})).mark_rule(strokeDash=[2, 2]).encode(y="y:Q")
 
-        chart = (line + ref_0_8 + ref_1_3 + ref_1_5).properties(height=340)
+        chart = (line + ref_08 + ref_13 + ref_15).properties(height=340)
         st.altair_chart(polish_chart(chart), use_container_width=True)
 
-    # --- Risk vs acute load
+    # Risk vs acute load
     with st.container(border=True):
         st.subheader(T["risk_vs_load_title"])
         st.caption(T["risk_vs_load_help"])
 
         scatter_df = panel.dropna(subset=["Acute_7d_km", "Risk"]).copy()
-
         scatter = (
             alt.Chart(scatter_df)
             .mark_circle(size=90, opacity=0.65)
@@ -584,16 +584,19 @@ else:
         )
         st.altair_chart(polish_chart(scatter), use_container_width=True)
 
-    # --- Long-term heatmap (back)
+    # Long-term heatmap (risk/load/acwr by Quarter or Year)
     with st.container(border=True):
         st.subheader(T["heatmap_title"])
         st.caption(T["heatmap_help"])
 
         agg_mode = st.selectbox("Agrégation" if lang == "fr" else "Aggregation", ["Trimestre", "Année"], index=0)
-        metric = st.selectbox("Métrique" if lang == "fr" else "Metric",
-                              ["Risque (moyenne)", "Charge aiguë 7j (moyenne)", "ACWR (moyenne)"],
-                              index=0)
-        view_mode = st.selectbox("Lignes" if lang == "fr" else "Rows", ["Par athlète", "Moyenne groupe"], index=0)
+        metric = st.selectbox(
+            "Métrique" if lang == "fr" else "Metric",
+            ["Risque (moyenne)", "Charge aiguë 7j (moyenne)", "ACWR (moyenne)"] if lang == "fr"
+            else ["Risk (mean)", "Acute load 7d (mean)", "ACWR (mean)"],
+            index=0,
+        )
+        view_mode = st.selectbox("Lignes" if lang == "fr" else "Rows", ["Par athlète", "Moyenne groupe"] if lang == "fr" else ["Per athlete", "Group average"], index=0)
 
         long_df = panel.dropna(subset=["Date"]).copy()
 
@@ -604,14 +607,17 @@ else:
             long_df["Period"] = long_df["Date"].dt.year.astype(str)
             period_title = "Année" if lang == "fr" else "Year"
 
-        if metric.startswith("Risque"):
-            value_col, value_title = "Risk", ("Risque moyen" if lang == "fr" else "Average risk")
-        elif metric.startswith("Charge"):
-            value_col, value_title = "Acute_7d_km", ("Charge aiguë moyenne (7j km)" if lang == "fr" else "Avg acute load (7d km)")
+        if metric.startswith("Risque") or metric.startswith("Risk"):
+            value_col = "Risk"
+            value_title = "Risque moyen" if lang == "fr" else "Average risk"
+        elif metric.startswith("Charge") or metric.startswith("Acute"):
+            value_col = "Acute_7d_km"
+            value_title = "Charge aiguë moyenne (7j km)" if lang == "fr" else "Avg acute load (7d km)"
         else:
-            value_col, value_title = "ACWR", ("ACWR moyen" if lang == "fr" else "Average ACWR")
+            value_col = "ACWR"
+            value_title = "ACWR moyen" if lang == "fr" else "Average ACWR"
 
-        if view_mode == "Moyenne groupe":
+        if view_mode in ["Moyenne groupe", "Group average"]:
             agg = long_df.groupby(["Period"], as_index=False)[value_col].mean().rename(columns={value_col: "Value"})
             agg["Row"] = "Moyenne groupe" if lang == "fr" else "Group average"
         else:
@@ -632,7 +638,7 @@ else:
             .mark_rect()
             .encode(
                 x=alt.X("Period:N", sort=period_sort, title=period_title, axis=alt.Axis(labelAngle=0, labelLimit=120)),
-                y=alt.Y("Row:N", title=("Athlète" if lang == "fr" else "Athlete") if view_mode == "Par athlète" else "", sort="ascending"),
+                y=alt.Y("Row:N", title=("Athlète" if lang == "fr" else "Athlete") if view_mode not in ["Moyenne groupe", "Group average"] else "", sort="ascending"),
                 color=alt.Color("Value:Q", title=value_title, scale=alt.Scale(scheme="viridis")),
                 tooltip=[
                     alt.Tooltip("Row:N", title="Athlète" if lang == "fr" else "Athlete"),
@@ -646,16 +652,14 @@ else:
 
 
 # =========================================================
-# SECTION — Decisions + SHAP explanations
+# Decisions & SHAP explanations
 # =========================================================
 st.header(T["actions"])
-
 with st.container(border=True):
     st.markdown(T["guidance"])
 
 if shap_store:
     cols = st.columns([2, 2, 3], vertical_alignment="center")
-
     with cols[0]:
         focus_athlete = st.selectbox(T["focus_athlete"], options=sorted(shap_store.keys()), index=0)
 
@@ -673,28 +677,33 @@ if shap_store:
 
     with cols[2]:
         st.markdown(f"**Date :** {str(dates.iloc[date_idx])}" if lang == "fr" else f"**Date:** {str(dates.iloc[date_idx])}")
-        st.markdown(f"### {band_icon} {band_label} (score : **{risk_val:.2f}**)" if lang == "fr" else f"### {band_icon} {band_label} (score: **{risk_val:.2f}**)")
+        st.markdown(
+            f"### {band_icon} {band_label} (score : **{risk_val:.2f}**)" if lang == "fr"
+            else f"### {band_icon} {band_label} (score: **{risk_val:.2f}**)"
+        )
         st.write(coach_message(risk_val, lang))
 
-    # SHAP drivers
+    # Drivers bar chart
     with st.container(border=True):
         st.subheader(T["drivers_title"])
         st.caption(T["drivers_help"])
         st.markdown(T["drivers_howto"])
 
         sv = shap_values_focus[date_idx]
-        feat_names = [rename_feature(c) for c in X_focus.columns]
+        feat_names = [rename_feature(c, lang) for c in X_focus.columns]
         topk = np.argsort(np.abs(sv))[::-1][:10]
 
+        col_factor = "Facteur" if lang == "fr" else "Factor"
+        col_dir = "Sens" if lang == "fr" else "Direction"
+
         drivers = pd.DataFrame(
-            {"Facteur": [feat_names[i] for i in topk], "Impact": [float(sv[i]) for i in topk]}
+            {col_factor: [feat_names[i] for i in topk], "Impact": [float(sv[i]) for i in topk]}
         )
-
-        if lang == "fr":
-            drivers["Sens"] = np.where(drivers["Impact"] >= 0, "Augmente le risque", "Réduit le risque")
-        else:
-            drivers["Sens"] = np.where(drivers["Impact"] >= 0, "Increases risk", "Decreases risk")
-
+        drivers[col_dir] = np.where(
+            drivers["Impact"] >= 0,
+            ("Augmente le risque" if lang == "fr" else "Increases risk"),
+            ("Réduit le risque" if lang == "fr" else "Decreases risk"),
+        )
         drivers["Impact_abs"] = drivers["Impact"].abs()
         drivers = drivers.sort_values("Impact_abs", ascending=True)
 
@@ -703,9 +712,9 @@ if shap_store:
             .mark_bar()
             .encode(
                 x=alt.X("Impact:Q", title="Contribution au score de risque" if lang == "fr" else "Contribution to risk score"),
-                y=alt.Y("Facteur:N", title="", sort=None),
-                color=alt.Color("Sens:N", title=""),
-                tooltip=["Facteur:N", "Impact:Q", "Sens:N"],
+                y=alt.Y(f"{col_factor}:N", title="", sort=None),
+                color=alt.Color(f"{col_dir}:N", title=""),
+                tooltip=[f"{col_factor}:N", "Impact:Q", f"{col_dir}:N"],
             )
             .properties(height=380)
         )
@@ -716,8 +725,7 @@ if shap_store:
         st.subheader(T["contrib_heatmap_title"])
         st.caption(T["contrib_heatmap_help"])
 
-        N = st.slider("Nombre de jours affichés" if lang == "fr" else "Days shown",
-                      min_value=7, max_value=30, value=14, step=1)
+        N = st.slider("Nombre de jours affichés" if lang == "fr" else "Days shown", 7, 30, 14, 1)
         N = min(N, len(dates))
         start_idx = max(0, len(dates) - N)
 
@@ -727,32 +735,28 @@ if shap_store:
 
         heat = pd.DataFrame(
             sv_window[:, top_feat_idx],
-            columns=[rename_feature(X_focus.columns[i]) for i in top_feat_idx],
+            columns=[rename_feature(X_focus.columns[i], lang) for i in top_feat_idx],
         )
         heat["Date"] = dates.iloc[start_idx:len(dates)].dt.strftime("%Y-%m-%d").tolist()
 
-        heat_long = heat.melt(id_vars=["Date"], var_name="Facteur", value_name="Contribution")
+        heat_long = heat.melt(id_vars=["Date"], var_name=("Facteur" if lang == "fr" else "Factor"), value_name=("Contribution" if lang == "fr" else "Contribution"))
 
-        cap = float(np.quantile(np.abs(heat_long["Contribution"]), 0.95)) if len(heat_long) else 1.0
-        heat_long["Contribution_cap"] = heat_long["Contribution"].clip(-cap, cap)
+        cap = float(np.quantile(np.abs(heat_long.iloc[:, -1]), 0.95)) if len(heat_long) else 1.0
+        heat_long["Contribution_cap"] = heat_long.iloc[:, -1].clip(-cap, cap)
 
         heatmap_recent = (
             alt.Chart(heat_long)
             .mark_rect()
             .encode(
-                x=alt.X("Facteur:N", title="Facteurs principaux" if lang == "fr" else "Main drivers",
-                        sort=None, axis=alt.Axis(labelAngle=-20, labelLimit=180)),
-                y=alt.Y("Date:N", title="Date", sort=None, axis=alt.Axis(labelLimit=120)),
+                x=alt.X(f"{('Facteur' if lang == 'fr' else 'Factor')}:N", sort=None, axis=alt.Axis(labelAngle=-20, labelLimit=180),
+                        title="Facteurs principaux" if lang == "fr" else "Main drivers"),
+                y=alt.Y("Date:N", sort=None, axis=alt.Axis(labelLimit=120), title="Date"),
                 color=alt.Color(
                     "Contribution_cap:Q",
                     title="Contribution",
                     scale=alt.Scale(scheme="redblue", reverse=True, domain=[-cap, cap]),
                 ),
-                tooltip=[
-                    alt.Tooltip("Date:N", title="Date"),
-                    alt.Tooltip("Facteur:N", title="Facteur" if lang == "fr" else "Factor"),
-                    alt.Tooltip("Contribution:Q", title="Contribution brute" if lang == "fr" else "Raw contribution", format=".4f"),
-                ],
+                tooltip=["Date:N", f"{('Facteur' if lang == 'fr' else 'Factor')}:N", alt.Tooltip(heat_long.columns[-1], format=".4f")],
             )
             .properties(height=max(320, 22 * N))
         ).configure_mark(opacity=0.95)
@@ -764,10 +768,7 @@ if shap_store:
 # ML Audit
 # =========================================================
 with st.expander(T["ml_audit"], expanded=False):
-    threshold = st.slider(
-        "Seuil de classification" if lang == "fr" else "Classification threshold",
-        0.05, 0.95, 0.50, 0.05
-    )
+    threshold = st.slider("Seuil de classification" if lang == "fr" else "Classification threshold", 0.05, 0.95, 0.50, 0.05)
 
     if "injury" not in panel.columns:
         st.info("Colonne 'injury' introuvable." if lang == "fr" else "No 'injury' column found.")
@@ -790,24 +791,45 @@ with st.expander(T["ml_audit"], expanded=False):
         c5.metric("F1", f"{f1:.3f}")
 
         cm = confusion_matrix(y_true, y_pred)
-        cm_df = pd.DataFrame(cm, index=["Vrai : pas blessé", "Vrai : blessé"], columns=["Prédit : pas blessé", "Prédit : blessé"])
+        cm_df = pd.DataFrame(
+            cm,
+            index=["Vrai : pas blessé", "Vrai : blessé"] if lang == "fr" else ["True: No injury", "True: Injury"],
+            columns=["Prédit : pas blessé", "Prédit : blessé"] if lang == "fr" else ["Pred: No injury", "Pred: Injury"],
+        )
         st.dataframe(cm_df, use_container_width=True)
 
         if len(np.unique(y_true)) > 1:
             fpr, tpr, _ = roc_curve(y_true, y_score)
             roc_df = pd.DataFrame({"FPR": fpr, "TPR": tpr})
-            roc_chart = alt.Chart(roc_df).mark_line().encode(
-                x=alt.X("FPR:Q", title="Taux de faux positifs"),
-                y=alt.Y("TPR:Q", title="Taux de vrais positifs"),
-            ).properties(height=260, title="Courbe ROC")
+            roc_chart = (
+                alt.Chart(roc_df)
+                .mark_line()
+                .encode(
+                    x=alt.X("FPR:Q", title="Taux de faux positifs" if lang == "fr" else "False Positive Rate"),
+                    y=alt.Y("TPR:Q", title="Taux de vrais positifs" if lang == "fr" else "True Positive Rate"),
+                )
+                .properties(height=260, title="Courbe ROC" if lang == "fr" else "ROC curve")
+            )
             st.altair_chart(polish_chart(roc_chart), use_container_width=True)
 
             frac_pos, mean_pred = calibration_curve(y_true, y_score, n_bins=10, strategy="quantile")
-            cal_df = pd.DataFrame({"Probabilité prédite": mean_pred, "Fréquence observée": frac_pos})
-            cal_chart = alt.Chart(cal_df).mark_line(point=True).encode(
-                x=alt.X("Probabilité prédite:Q", title="Probabilité prédite"),
-                y=alt.Y("Fréquence observée:Q", title="Fréquence observée"),
-            ).properties(height=260, title="Courbe de calibration")
+            cal_df = pd.DataFrame(
+                {"Probabilité prédite": mean_pred, "Fréquence observée": frac_pos}
+                if lang == "fr"
+                else {"Predicted probability": mean_pred, "Observed frequency": frac_pos}
+            )
+            x_col = "Probabilité prédite" if lang == "fr" else "Predicted probability"
+            y_col = "Fréquence observée" if lang == "fr" else "Observed frequency"
+
+            cal_chart = (
+                alt.Chart(cal_df)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X(f"{x_col}:Q", title=x_col),
+                    y=alt.Y(f"{y_col}:Q", title=y_col),
+                )
+                .properties(height=260, title="Courbe de calibration" if lang == "fr" else "Calibration curve")
+            )
             st.altair_chart(polish_chart(cal_chart), use_container_width=True)
 
 with st.expander(T["raw_data"], expanded=False):
